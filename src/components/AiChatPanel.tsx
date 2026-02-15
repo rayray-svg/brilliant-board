@@ -3,6 +3,7 @@ import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/types';
 import ReactMarkdown from 'react-markdown';
+import { useQueryClient } from '@tanstack/react-query';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -12,6 +13,7 @@ export function AiChatPanel() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
@@ -26,8 +28,6 @@ export function AiChatPanel() {
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
 
-    let assistantSoFar = '';
-
     try {
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
@@ -38,47 +38,19 @@ export function AiChatPanel() {
         body: JSON.stringify({ messages: [...messages, userMsg] }),
       });
 
-      if (!resp.ok || !resp.body) {
+      if (!resp.ok) {
         const errData = resp.status === 429 || resp.status === 402
           ? await resp.json().catch(() => ({}))
           : {};
         throw new Error(errData.error || 'Failed to get response');
       }
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+      const data = await resp.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let idx: number;
-        while ((idx = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(json);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              assistantSoFar += content;
-              setMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last?.role === 'assistant')
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-                return [...prev, { role: 'assistant', content: assistantSoFar }];
-              });
-            }
-          } catch {
-            buffer = line + '\n' + buffer;
-            break;
-          }
-        }
+      // If the AI created tasks, refresh the task list
+      if (data.tasksCreated) {
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
       }
     } catch (e: any) {
       setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${e.message}` }]);
@@ -122,6 +94,7 @@ export function AiChatPanel() {
             <div className="text-center text-xs text-muted-foreground mt-12 space-y-1">
               <p className="text-base">👋</p>
               <p>Ask me about your tasks, get suggestions, or plan your sprint.</p>
+              <p className="mt-2 text-muted-foreground/70">Try: "Create a task to design the landing page"</p>
             </div>
           )}
           {messages.map((msg, i) => (
@@ -142,7 +115,7 @@ export function AiChatPanel() {
               </div>
             </div>
           ))}
-          {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+          {isLoading && (
             <div className="flex justify-start">
               <div className="bg-muted rounded-xl px-3 py-2">
                 <Loader2 size={16} className="animate-spin text-muted-foreground" />
@@ -158,7 +131,7 @@ export function AiChatPanel() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
-              placeholder="Ask anything..."
+              placeholder="Ask anything or create tasks..."
               className="flex-1 text-sm bg-background border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring text-foreground placeholder:text-muted-foreground"
             />
             <button

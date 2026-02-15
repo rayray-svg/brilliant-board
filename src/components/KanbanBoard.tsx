@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { COLUMNS, TaskStatus } from '@/lib/types';
+import { COLUMNS, TaskStatus, Task } from '@/lib/types';
 import { KanbanColumn } from './KanbanColumn';
 import { AddTaskDialog } from './AddTaskDialog';
+import { TaskDetailDialog } from './TaskDetailDialog';
 import { useTasks } from '@/hooks/useTasks';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,6 +11,8 @@ export function KanbanBoard() {
   const { tasks, isLoading, addTask, updateTask, deleteTask } = useTasks();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogStatus, setDialogStatus] = useState<TaskStatus>('todo');
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const handleDrop = (taskId: string, newStatus: TaskStatus) => {
     const task = tasks.find(t => t.id === taskId);
@@ -32,6 +35,18 @@ export function KanbanBoard() {
     });
   };
 
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setDetailOpen(true);
+  };
+
+  const handleUpdate = (updates: Partial<Task> & { id: string }) => {
+    updateTask.mutate(updates, {
+      onError: () => toast.error('Failed to update task'),
+      onSuccess: () => toast.success('Task updated'),
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -51,6 +66,7 @@ export function KanbanBoard() {
             onDrop={handleDrop}
             onAddClick={(status) => { setDialogStatus(status); setDialogOpen(true); }}
             onDelete={handleDelete}
+            onTaskClick={handleTaskClick}
           />
         ))}
       </div>
@@ -59,6 +75,13 @@ export function KanbanBoard() {
         onOpenChange={setDialogOpen}
         defaultStatus={dialogStatus}
         onSubmit={handleAdd}
+      />
+      <TaskDetailDialog
+        task={selectedTask}
+        open={detailOpen}
+        onOpenChange={(open) => { setDetailOpen(open); if (!open) setSelectedTask(null); }}
+        onUpdate={handleUpdate}
+        onDelete={handleDelete}
       />
     </>
   );
