@@ -57,6 +57,17 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        column: "hsl(var(--column-bg))",
+        priority: {
+          urgent: "hsl(var(--priority-urgent))",
+          high: "hsl(var(--priority-high))",
+          medium: "hsl(var(--priority-medium))",
+          low: "hsl(var(--priority-low))",
+        },
+        chat: {
+          accent: "hsl(var(--chat-accent))",
+          "accent-foreground": "hsl(var(--chat-accent-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
