@@ -13,12 +13,14 @@ const priorityStyles: Record<string, string> = {
 interface TaskCardProps {
   task: Task;
   onDelete: (id: string) => void;
+  onClick: (task: Task) => void;
 }
 
-export function TaskCard({ task, onDelete }: TaskCardProps) {
+export function TaskCard({ task, onDelete, onClick }: TaskCardProps) {
   return (
     <div
       draggable
+      onClick={() => onClick(task)}
       onDragStart={(e) => {
         e.dataTransfer.setData('taskId', task.id);
         e.currentTarget.classList.add('opacity-40', 'scale-95');
@@ -27,7 +29,7 @@ export function TaskCard({ task, onDelete }: TaskCardProps) {
         e.currentTarget.classList.remove('opacity-40', 'scale-95');
       }}
       className={cn(
-        'group bg-card rounded-lg p-3.5 cursor-grab active:cursor-grabbing',
+        'group bg-card rounded-lg p-3.5 cursor-pointer active:cursor-grabbing',
         'border border-border/60 transition-all duration-200',
         'hover:shadow-[var(--card-shadow-hover)] shadow-[var(--card-shadow)]',
       )}
@@ -36,7 +38,7 @@ export function TaskCard({ task, onDelete }: TaskCardProps) {
         <h4 className="text-sm font-medium text-card-foreground leading-snug">{task.title}</h4>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            onClick={() => onDelete(task.id)}
+            onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
             className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
           >
             <Trash2 size={13} />
